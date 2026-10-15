@@ -245,7 +245,7 @@
         const pinPopupClose = document.getElementById('pin-popup-close');
 
         // DEFAULT PIN: Silakan ubah angka ini jika ingin PIN lain
-        const SECRET_PIN = "0710";
+        const SECRET_PIN = "1610";
 
         let pinAttempt = 0;
         let popupTimeout = null;
@@ -491,7 +491,20 @@ document.addEventListener("DOMContentLoaded", function () {
                     modalImg.style.display = 'none'; // Sembunyikan foto
                     modalIframe.style.display = 'block'; // Tampilkan alat musik/video
 
-                    const embedUrl = this.getAttribute('data-embed');
+                    let embedUrl = this.getAttribute('data-embed');
+                    
+                    // Auto-convert Spotify standard link ke embed format jika diperlukan
+                    if (embedUrl.includes('open.spotify.com') && !embedUrl.includes('/embed/')) {
+                        embedUrl = embedUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
+                    }
+
+                    // Auto-convert YouTube standard link ke embed format jika diperlukan
+                    if (embedUrl.includes('youtube.com/watch?v=')) {
+                        embedUrl = embedUrl.replace('youtube.com/watch?v=', 'youtube.com/embed/');
+                    } else if (embedUrl.includes('youtu.be/')) {
+                        embedUrl = embedUrl.replace('youtu.be/', 'youtube.com/embed/');
+                    }
+
                     modalIframe.src = embedUrl; // Masukkan link
 
                     // Hapus class lama
@@ -504,6 +517,19 @@ document.addEventListener("DOMContentLoaded", function () {
                         modalIframe.classList.add('iframe-spotify');
                     } else if (embedUrl.includes('facebook.com')) {
                         modalIframe.classList.add('iframe-facebook');
+                    }
+
+                    // Pause background music agar audio Spotify terdengar jelas
+                    const bgMusic = document.getElementById('bg-music');
+                    if (bgMusic && !bgMusic.paused) {
+                        bgMusic.pause();
+                        window._bgMusicPausedByModal = true;
+                        const iconPlay = document.getElementById('icon-play');
+                        const iconPause = document.getElementById('icon-pause');
+                        if (iconPlay && iconPause) {
+                            iconPlay.style.display = 'block';
+                            iconPause.style.display = 'none';
+                        }
                     }
 
                     const customCaption = this.getAttribute('data-caption');
@@ -537,21 +563,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     const teksCaption = customCaption ? customCaption : (capElem ? capElem.innerText : '');
                     if (modalCaption) modalCaption.innerText = teksCaption;
                 }
-                // D. JIKA YANG DIKLIK ADALAH GALERI CINTA
+                // D. JIKA YANG DIKLIK ADALAH GALERI CINTA (Core Memories)
                 else {
                     modalImg.src = this.src;
-
-                    const parentCard = this.closest('.scratch-card');
-                    if (parentCard && Array.from(parentCard.parentNode.children).indexOf(parentCard) < 3) {
-                        modalImg.style.aspectRatio = "3 / 2";
-                        modalImg.style.width = "90vw";
-                        modalImg.style.height = "auto";
-                    } else {
-                        modalImg.style.aspectRatio = "9 / 16";
-                        modalImg.style.width = "auto";
-                        modalImg.style.height = "75vh";
-                    }
-
+                    modalImg.style.aspectRatio = "9 / 16";
+                    modalImg.style.width = "auto";
+                    modalImg.style.height = "75vh";
                     modalImg.style.maxWidth = "85vw";
                     modalImg.style.maxHeight = "75vh";
                     modalImg.style.objectFit = "cover";
@@ -589,16 +606,76 @@ function tutupModal() {
             modalImg.style.maxWidth = "";
             modalImg.style.maxHeight = "";
         }
+
+        // Resume bg music jika sebelumnya di-pause oleh modal embed
+        if (window._bgMusicPausedByModal) {
+            window._bgMusicPausedByModal = false;
+            const bgMusic = document.getElementById('bg-music');
+            if (bgMusic) {
+                bgMusic.play().catch(console.error);
+                const iconPlay = document.getElementById('icon-play');
+                const iconPause = document.getElementById('icon-pause');
+                if (iconPlay && iconPause) {
+                    iconPlay.style.display = 'none';
+                    iconPause.style.display = 'block';
+                }
+            }
+        }
     }
 }
 
 // ==========================================
 // 1.B PENGATURAN VIDEO CORE MEMORIES (9:16)
 // ==========================================
+let bgMusicPausedByVideo = false;
+
 function initVideoMemories() {
     const videos = document.querySelectorAll('.memory-video');
 
+    function updateBacksoundForVideos() {
+        const bgMusic = document.getElementById('bg-music');
+        if (!bgMusic) return;
+
+        // Cek apakah ada video yang sedang diputar dengan suara (tidak muted dan volume > 0)
+        const anyVideoAudible = Array.from(videos).some(
+            v => !v.paused && !v.muted && v.volume > 0
+        );
+
+        if (anyVideoAudible) {
+            // Jika video bersuara sedang diputar, matikan/pause backsound website
+            if (!bgMusic.paused) {
+                bgMusic.pause();
+                bgMusicPausedByVideo = true;
+                const iconPlay = document.getElementById('icon-play');
+                const iconPause = document.getElementById('icon-pause');
+                if (iconPlay && iconPause) {
+                    iconPlay.style.display = 'block';
+                    iconPause.style.display = 'none';
+                }
+            }
+        } else {
+            // Jika video dimute kembali atau di-pause, hidupkan kembali backsound website
+            if (bgMusicPausedByVideo) {
+                bgMusicPausedByVideo = false;
+                const modal = document.getElementById('image-modal');
+                const isModalActive = modal && modal.classList.contains('show-modal');
+                if (!isModalActive) {
+                    bgMusic.play().catch(console.error);
+                    const iconPlay = document.getElementById('icon-play');
+                    const iconPause = document.getElementById('icon-pause');
+                    if (iconPlay && iconPause) {
+                        iconPlay.style.display = 'none';
+                        iconPause.style.display = 'block';
+                    }
+                }
+            }
+        }
+    }
+
     videos.forEach(video => {
+        // Otomatis mute video sejak awal
+        video.muted = true;
+
         video.addEventListener('play', function () {
             // Hentikan video lain jika sedang menyala agar tidak bertumpuk
             videos.forEach(otherVideo => {
@@ -606,8 +683,15 @@ function initVideoMemories() {
                     otherVideo.pause();
                 }
             });
-            // Lagu latar (bg-music) tetap terus berputar tanpa dijeda
+            updateBacksoundForVideos();
         });
+
+        // Deteksi jika pengunjung menekan tombol suara (mute/unmute atau ubah volume)
+        video.addEventListener('volumechange', updateBacksoundForVideos);
+
+        // Deteksi video di-pause atau selesai diputar
+        video.addEventListener('pause', updateBacksoundForVideos);
+        video.addEventListener('ended', updateBacksoundForVideos);
     });
 }
 
@@ -928,9 +1012,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let drawMoveCount = 0;
 
         setTimeout(() => {
-            const isLandscape = index < 3;
-            const cardWidth = canvas.parentElement.offsetWidth || (isLandscape ? 320 : 220);
-            const cardHeight = canvas.parentElement.offsetHeight || (isLandscape ? Math.round(cardWidth * 2 / 3) : Math.round(cardWidth * 16 / 9));
+            const cardWidth = canvas.parentElement.offsetWidth || 220;
+            const cardHeight = canvas.parentElement.offsetHeight || Math.round(cardWidth * 16 / 9);
             canvas.width = cardWidth;
             canvas.height = cardHeight;
 
