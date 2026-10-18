@@ -245,7 +245,7 @@
         const pinPopupClose = document.getElementById('pin-popup-close');
 
         // DEFAULT PIN: Silakan ubah angka ini jika ingin PIN lain
-        const SECRET_PIN = "1610";
+        const SECRET_PIN = "1912";
 
         let pinAttempt = 0;
         let popupTimeout = null;
@@ -492,7 +492,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     modalIframe.style.display = 'block'; // Tampilkan alat musik/video
 
                     let embedUrl = this.getAttribute('data-embed');
-                    
+
                     // Auto-convert Spotify standard link ke embed format jika diperlukan
                     if (embedUrl.includes('open.spotify.com') && !embedUrl.includes('/embed/')) {
                         embedUrl = embedUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
@@ -1169,6 +1169,8 @@ function tutupHalamanLilin() {
         holdTime = 0;
         holdCurrentStage = 0;
 
+        hentikanKembangApi();
+
         if (msg) {
             msg.textContent = '';
             msg.className = 'candle-message';
@@ -1394,6 +1396,7 @@ function tampilkanTahap3() {
 
     // Setelah semua api mati
     setTimeout(() => {
+        mulaiKembangApi();
         buatConfetti();
 
         setTimeout(() => {
@@ -1470,12 +1473,269 @@ function buatConfetti() {
         }
     }
 
+    // Gelombang confetti (dikurangi di mobile agar tidak lag)
+    const w = IS_MOBILE_FX ? [20, 16, 12] : [60, 50, 40];
+
     // Gelombang 1: Ledakan utama
-    burstWave(60, 0);
+    burstWave(w[0], 0);
 
     // Gelombang 2: Ledakan kedua setelah 0.8 detik
-    setTimeout(() => burstWave(50, 0), 800);
+    setTimeout(() => burstWave(w[1], 0), 800);
 
     // Gelombang 3: Hujan confetti lanjutan
-    setTimeout(() => burstWave(40, 0), 2000);
+    setTimeout(() => burstWave(w[2], 0), 2000);
 }
+
+// ==========================================
+// KEMBANG API (FIREWORKS) SETELAH TIUP LILIN
+// ==========================================
+const IS_MOBILE_FX = window.innerWidth < 768 || ('ontouchstart' in window);
+const FW_SCALE = IS_MOBILE_FX ? 0.6 : 1;           // resolusi canvas lebih rendah di mobile
+const FW_MAX_PARTICLES = IS_MOBILE_FX ? 160 : 450;  // batas total partikel
+const FW_FRAME_MS = IS_MOBILE_FX ? 1000 / 40 : 1000 / 60;
+let fireworksLastFrame = 0;
+let fireworksCanvas = null;
+let fireworksCtx = null;
+let fireworksAnimationId = null;
+let fireworksRockets = [];
+let fireworksParticles = [];
+let fireworksInterval = null;
+let isFireworksActive = false;
+
+const FIREWORK_COLORS = [
+    '#ff1493', '#ff69b4', '#ff85a2', '#ffffff',
+    '#ffd700', '#ffe4b5', '#d946ef', '#c084fc',
+    '#38bdf8', '#fb7185', '#f43f5e', '#fff0f5'
+];
+
+function initFireworksCanvas() {
+    fireworksCanvas = document.getElementById('candle-fireworks-canvas');
+    if (!fireworksCanvas) return;
+    fireworksCtx = fireworksCanvas.getContext('2d');
+    resizeFireworksCanvas();
+}
+
+function resizeFireworksCanvas() {
+    if (!fireworksCanvas) return;
+    fireworksCanvas.width = Math.round(window.innerWidth * FW_SCALE);
+    fireworksCanvas.height = Math.round(window.innerHeight * FW_SCALE);
+    if (fireworksCtx) fireworksCtx.setTransform(FW_SCALE, 0, 0, FW_SCALE, 0, 0);
+}
+
+window.addEventListener('resize', () => {
+    if (isFireworksActive) resizeFireworksCanvas();
+});
+
+function launchRocket(targetX, targetY) {
+    if (!fireworksCanvas) return;
+    const startX = targetX !== undefined ? targetX : (window.innerWidth * (0.15 + Math.random() * 0.7));
+    const startY = window.innerHeight;
+    const destX = targetX !== undefined ? targetX : (startX + (Math.random() - 0.5) * 80);
+    const destY = targetY !== undefined ? targetY : (window.innerHeight * (0.12 + Math.random() * 0.35));
+
+    const color = FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)];
+    const speed = 11 + Math.random() * 4;
+    const dx = destX - startX;
+    const dy = destY - startY;
+    const dist = Math.hypot(dx, dy) || 1;
+
+    fireworksRockets.push({
+        x: startX,
+        y: startY,
+        vx: (dx / dist) * speed,
+        vy: (dy / dist) * speed,
+        destY: destY,
+        color: color,
+        trail: [],
+        trailLength: 6
+    });
+}
+
+function createFireworkExplosion(x, y, baseColor) {
+    if (fireworksParticles.length > FW_MAX_PARTICLES) return; // hindari penumpukan partikel
+    const particleCount = IS_MOBILE_FX ? 26 + Math.floor(Math.random() * 10) : 65 + Math.floor(Math.random() * 30);
+    const useMultiColor = Math.random() > 0.35;
+
+    for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5.5 + 1.2;
+        const color = useMultiColor
+            ? FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)]
+            : baseColor;
+
+        fireworksParticles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            alpha: 1,
+            decay: 0.012 + Math.random() * 0.018,
+            color: color,
+            size: Math.random() * 2.8 + 1.2,
+            gravity: 0.065,
+            friction: 0.965
+        });
+    }
+
+    // Sparkle glitter putih
+    for (let i = 0; i < (IS_MOBILE_FX ? 6 : 22); i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3.5 + 0.5;
+        fireworksParticles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            alpha: 1,
+            decay: 0.022 + Math.random() * 0.02,
+            color: '#ffffff',
+            size: 1.2,
+            gravity: 0.045,
+            friction: 0.95
+        });
+    }
+}
+
+function updateFireworksLoop(now) {
+    if (!isFireworksActive || !fireworksCtx || !fireworksCanvas) return;
+
+    // Batasi FPS (lebih ringan di mobile)
+    if (now - fireworksLastFrame < FW_FRAME_MS - 1) {
+        fireworksAnimationId = requestAnimationFrame(updateFireworksLoop);
+        return;
+    }
+    fireworksLastFrame = now;
+
+    const ctx = fireworksCtx;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    // Pudarkan frame sebelumnya (efek trail lembut)
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Update rockets
+    for (let i = fireworksRockets.length - 1; i >= 0; i--) {
+        const r = fireworksRockets[i];
+        const px = r.x, py = r.y;
+        r.x += r.vx;
+        r.y += r.vy;
+
+        // Ekor roket: satu garis saja
+        ctx.strokeStyle = r.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px - r.vx * 2, py - r.vy * 2);
+        ctx.lineTo(r.x, r.y);
+        ctx.stroke();
+
+        // Meledak saat mendekati target puncak
+        if (r.vy >= 0 || r.y <= r.destY) {
+            createFireworkExplosion(r.x, r.y, r.color);
+            fireworksRockets.splice(i, 1);
+        }
+    }
+
+    // Update partikel ledakan (tanpa shadowBlur / save-restore, pakai fillRect)
+    let lastAlpha = -1;
+    let lastColor = '';
+    for (let i = fireworksParticles.length - 1; i >= 0; i--) {
+        const p = fireworksParticles[i];
+        p.vx *= p.friction;
+        p.vy *= p.friction;
+        p.vy += p.gravity;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0) {
+            fireworksParticles.splice(i, 1);
+            continue;
+        }
+
+        if (p.color !== lastColor) {
+            ctx.fillStyle = p.color;
+            lastColor = p.color;
+        }
+        // Kuantisasi alpha agar perubahan state lebih jarang
+        const a = Math.round(p.alpha * 8) / 8;
+        if (a !== lastAlpha) {
+            ctx.globalAlpha = a;
+            lastAlpha = a;
+        }
+        const s = p.size * 1.6;
+        ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+    }
+    ctx.globalAlpha = 1;
+
+    fireworksAnimationId = requestAnimationFrame(updateFireworksLoop);
+}
+
+function mulaiKembangApi() {
+    initFireworksCanvas();
+    if (!fireworksCanvas) return;
+
+    isFireworksActive = true;
+    fireworksRockets = [];
+    fireworksParticles = [];
+
+    // Ledakan pembuka: rentetan roket pembuka
+    launchRocket(window.innerWidth * 0.25);
+    setTimeout(() => launchRocket(window.innerWidth * 0.75), 250);
+    setTimeout(() => launchRocket(window.innerWidth * 0.5), 550);
+
+    // Peluncuran berulang secara berkelanjutan
+    if (fireworksInterval) clearInterval(fireworksInterval);
+    fireworksInterval = setInterval(() => {
+        if (!isFireworksActive || document.hidden) return;
+        launchRocket();
+        if (!IS_MOBILE_FX && Math.random() > 0.45) {
+            setTimeout(() => launchRocket(), 300);
+        }
+    }, IS_MOBILE_FX ? 1300 : 850);
+
+    // Mulai render loop
+    if (fireworksAnimationId) cancelAnimationFrame(fireworksAnimationId);
+    fireworksAnimationId = requestAnimationFrame(updateFireworksLoop);
+
+    // Interaktif: sentuh/klik layar candle-page untuk membuat ledakan langsung
+    const candlePage = document.getElementById('candle-page');
+    if (candlePage) {
+        candlePage.addEventListener('click', handleFireworkClick);
+    }
+}
+
+function handleFireworkClick(e) {
+    if (!isFireworksActive || !fireworksCanvas) return;
+    if (e.target.closest('.btn-back-candle')) return;
+    const rect = fireworksCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const color = FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)];
+    createFireworkExplosion(x, y, color);
+}
+
+function hentikanKembangApi() {
+    isFireworksActive = false;
+    if (fireworksInterval) {
+        clearInterval(fireworksInterval);
+        fireworksInterval = null;
+    }
+    if (fireworksAnimationId) {
+        cancelAnimationFrame(fireworksAnimationId);
+        fireworksAnimationId = null;
+    }
+    fireworksRockets = [];
+    fireworksParticles = [];
+    if (fireworksCtx && fireworksCanvas) {
+        fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+    }
+    const candlePage = document.getElementById('candle-page');
+    if (candlePage) {
+        candlePage.removeEventListener('click', handleFireworkClick);
+    }
+}
+
