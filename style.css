@@ -900,21 +900,25 @@ body {
     text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.6);
 }
 
-/* Posisi 4 Kartu Planet (90 derajat) berdekatan namun tidak terlalu rapat */
+/* Posisi 5 Kartu Planet (72 derajat) berdekatan namun tidak terlalu rapat */
 .item1 {
-    transform: rotateY(0deg) translateZ(200px);
+    transform: rotateY(0deg) translateZ(195px);
 }
 
 .item2 {
-    transform: rotateY(90deg) translateZ(200px);
+    transform: rotateY(72deg) translateZ(195px);
 }
 
 .item3 {
-    transform: rotateY(180deg) translateZ(200px);
+    transform: rotateY(144deg) translateZ(195px);
 }
 
 .item4 {
-    transform: rotateY(270deg) translateZ(200px);
+    transform: rotateY(216deg) translateZ(195px);
+}
+
+.item5 {
+    transform: rotateY(288deg) translateZ(195px);
 }
 
 /* =========================================
@@ -1223,8 +1227,8 @@ body {
 
 .video-cards-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 24px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
     width: 100%;
     max-width: 620px;
     margin: 0 auto;
@@ -1253,7 +1257,7 @@ body {
 .video-frame-container {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 9 / 16;
     border-radius: 12px;
     overflow: hidden;
     background: #000;
@@ -1350,6 +1354,14 @@ body {
 .polaroid-grid .polaroid:nth-child(4) {
     transform: rotate(2.5deg);
     animation: float-polaroid-alt 6.2s ease-in-out infinite;
+}
+
+.polaroid-grid .polaroid.polaroid-center {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc(50% - 10px);
+    transform: rotate(-1deg);
+    animation: float-polaroid 5.4s ease-in-out infinite;
 }
 
 .polaroid:hover {
@@ -1603,21 +1615,25 @@ body {
         font-size: 0.95rem;
     }
 
-    /* Menyesuaikan jarak orbit 4 kartu di HP */
+    /* Menyesuaikan jarak orbit 5 kartu di HP (72 derajat) */
     .item1 {
-        transform: rotateY(0deg) translateZ(160px);
+        transform: rotateY(0deg) translateZ(150px);
     }
 
     .item2 {
-        transform: rotateY(90deg) translateZ(160px);
+        transform: rotateY(72deg) translateZ(150px);
     }
 
     .item3 {
-        transform: rotateY(180deg) translateZ(160px);
+        transform: rotateY(144deg) translateZ(150px);
     }
 
     .item4 {
-        transform: rotateY(270deg) translateZ(160px);
+        transform: rotateY(216deg) translateZ(150px);
+    }
+
+    .item5 {
+        transform: rotateY(288deg) translateZ(150px);
     }
 
     #main-content {
@@ -1652,16 +1668,17 @@ body {
     }
 
     .video-cards-grid {
-        grid-template-columns: 1fr;
-        gap: 22px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
         max-width: 100%;
         margin: 0 auto;
     }
 
     .video-card-item {
-        padding: 10px;
-        border-radius: 14px;
+        padding: 6px;
+        border-radius: 12px;
         width: 100%;
+        min-width: 0;
     }
 
     .polaroid-wrapper {
@@ -1677,6 +1694,10 @@ body {
     .polaroid-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 16px;
+    }
+
+    .polaroid-grid .polaroid.polaroid-center {
+        width: calc(50% - 8px);
     }
 
     .polaroid {
